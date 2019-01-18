@@ -1,0 +1,48 @@
+#Instalación de CLI: https://docs.microsoft.com/es-es/cli/azure/install-azure-cli?view=azure-cli-latest
+
+#Configuración geográfica por defecto sobre lo que vamos a generar
+az configure --defaults location=westeurope
+
+#Creación de un grupo de recursos para nuestras instancias
+az group create --name Recursos --location westeurope
+
+#Creación de una red virtual principal con una subred secundaría
+az network vnet create --resource-group Recursos --name RedVirtual --address-prefix 192.168.0.0/16 --subnet-name SubredEmp --subnet-prefix 192.168.1.0/24
+
+#Creación de una ip pública
+az network public-ip create --resource-group Recursos --name IPpublica --dns-name dnspub
+
+#Creación de un grupo de seguridad
+az network nsg create --resource-group Recursos --name GrupoDeSeguridad
+
+#Creación de unas reglas para los accesos al entorno
+az network nsg rule create --resource-group Recursos --nsg-name GrupoDeSeguridad --name ReglaWEB --protocol tcp --priority 1001 --destination-port-range 80 --access allow
+az network nsg rule create --resource-group Recursos --nsg-name GrupoDeSeguridad --name ReglaRDP --protocol tcp --priority 1002 --destination-port-range 3389 --access allow
+
+#Creación de dos nic para nuestras máquunas
+az network nsg show --resource-group Recursos --name GrupoDeSeguridad
+az network nic create --resource-group Recursos --name NicRecursos1 --vnet-name RedVirtual --subnet SubredEmp --public-ip-address IPpublica --network-security-group GrupoDeSeguridad
+az network nic create --resource-group Recursos --name NicRecursos2 --vnet-name RedVirtual --subnet SubredEmp --network-security-group GrupoDeSeguridad
+
+#Creación de un conjunto de disponiblilidad para nuestros recurosos
+az vm availability-set create --resource-group Recursos --name ConjuntoDispo
+
+#Información sobre las máquinas según nuestra localización
+az vm image list --output table --location westeurope
+az vm image list --offer Win --location westeurope --output table 
+
+#Creación de dos máquinas virtuales
+az vm create --resource-group Recursos --name VMMadrid --location westeurope --availability-set ConjuntoDispo --nics NicRecursos1 --image Win2016Datacenter --os-disk-name DISCO_1 --size Standard_B2s --storage-sku Standard_LRS --license-type Windows_Client --admin-username azure --generate-ssh-keys
+az vm create --resource-group Recursos --name VMGranada --location westeurope --availability-set ConjuntoDispo --nics NicRecursos2 --image Win2016Datacenter --os-disk-name DISCO_2 --size Standard_B2s --storage-sku Standard_LRS --license-type Windows_Client --admin-username azure --generate-ssh-keys
+
+#Compobación de conectividad
+az network vnet check-ip-address -n RedVirtual -g Recursos --ip-address 192.168.1.4
+
+	
+##Auditoría con Azucar (https://github.com/nccgroup/azucar/)
+#Confuguración previa para PowerShell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Undefined -Force
+Set-ExecutionPolicy Unrestricted -Scope Process
+Powershell.exe -ExecutionPolicy Unrestricted -File c:\azucar\Azucar.ps1
+#Comando genérico:
+.\Azucar.ps1 -ExportTo CSV -Verbose
